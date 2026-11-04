@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  vroompulse:
+    build: .
+    container_name: vroompulse_telemetry
+    ports:
+      - "8000:8000"
+    restart: always
+    environment:
+      - DATABASE_URL=sqlite:///./vroompulse.db
