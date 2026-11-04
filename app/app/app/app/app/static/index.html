@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VroomPulse - Telemetry Hub | ApaNiVroom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-car-side text-blue-600 text-2xl mr-3"></i>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">VroomPulse</h1>
+                        <p class="text-xs text-gray-500">Telemetry Hub v2.0.0</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <span class="flex h-3 w-3 mr-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        <span class="text-sm text-gray-600">Live</span>
+                    </div>
+                    <div class="text-sm text-gray-500" id="lastUpdate">Last updated: --</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-blue-100 rounded-md p-3">
+                        <i class="fas fa-server text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">System Uptime</dt>
+                            <dd class="text-lg font-semibold text-gray-900" id="uptime">99.98%</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Active Services</dt>
+                            <dd class="text-lg font-semibold text-gray-900" id="activeServices">3/3</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-red-100 rounded-md p-3">
+                        <i class="fas fa-bug text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Critical Crashes</dt>
+                            <dd class="text-lg font-semibold text-gray-900" id="criticalCrashes">1</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                        <i class="fas fa-tasks text-purple-600 text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">QA Checklist</dt>
+                            <dd class="text-lg font-semibold text-gray-900" id="qaProgress">75%</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Service Health -->
+            <div class="lg:col-span-2 bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Service Health Monitor</h2>
+                </div>
+                <div class="p-6">
+                    <div id="servicesList" class="space-y-4">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latency Chart -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Latency Trends (ms)</h2>
+                </div>
+                <div class="p-6">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+            <!-- Crash Reports -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Recent Crash Reports</h2>
+                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800" id="crashCount">2 Active</span>
+                </div>
+                <div class="p-6">
+                    <div id="crashesList" class="space-y-4">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- QA Checklist -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Release QA Checklist</h2>
+                </div>
+                <div class="p-6">
+                    <div id="qaList" class="space-y-3">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prometheus Metrics Section -->
+        <div class="mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Prometheus Metrics Endpoint</h2>
+            </div>
+            <div class="p-6">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <code class="text-sm text-gray-700">
+                        <span class="text-blue-600">GET</span> /metrics<br>
+                        <span class="text-gray-500">Prometheus-compatible metrics endpoint for professional monitoring</span>
+                    </code>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                    <div class="p-3 bg-blue-50 rounded">
+                        <div class="text-2xl font-bold text-blue-600" id="metricRequests">1,247</div>
+                        <div class="text-xs text-gray-600">Total Requests</div>
+                    </div>
+                    <div class="p-3 bg-green-50 rounded">
+                        <div class="text-2xl font-bold text-green-600" id="metricAvgLatency">42ms</div>
+                        <div class="text-xs text-gray-600">Avg Latency</div>
+                    </div>
+                    <div class="p-3 bg-purple-50 rounded">
+                        <div class="text-2xl font-bold text-purple-600" id="metricErrors">0.02%</div>
+                        <div class="text-xs text-gray-600">Error Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- WebSocket Connection Status -->
+    <div id="wsStatus" class="fixed bottom-4 right-4 px-4 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg">
+        <i class="fas fa-circle text-green-400 mr-2"></i>WebSocket Connected
+    </div>
+
+    <script>
+        // WebSocket Connection for Real-Time Updates
+        let ws;
+        // Note: If deployed on a cloud provider, window.location.host works perfectly.
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/telemetry`;
+        
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('wsStatus').innerHTML = 
+                    '<i class="fas fa-circle text-green-400 mr-2"></i>WebSocket Connected';
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting...');
+                document.getElementById('wsStatus').innerHTML = 
+                    '<i class="fas fa-circle text-red-400 mr-2"></i>Reconnecting...';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+        
+        // Initialize Chart.js
+        const ctx = document.getElementById('latencyChart').getContext('2d');
+        const latencyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Auth Service',
+                    data: [],
+                    borderColor: 'rgb(59, 130, 246)',
+                    tension: 0.4
+                }, {
+                    label: 'Ride Matcher',
+                    data: [],
+                    borderColor: 'rgb(16, 185, 129)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+        
+        function updateDashboard(data) {
+            // Update Services
+            const servicesList = document.getElementById('servicesList');
+            servicesList.innerHTML = data.services.map(service => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            ${service.status === 'healthy' 
+                                ? '<i class="fas fa-check-circle text-green-500 text-2xl"></i>'
+                                : service.status === 'degraded'
+                                ? '<i class="fas fa-exclamation-triangle text-yellow-500 text-2xl"></i>'
+                                : '<i class="fas fa-times-circle text-red-500 text-2xl"></i>'
+                            }
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-900">${service.service_name}</p>
+                            <p class="text-xs text-gray-500">Last check: ${new Date(service.last_check).toLocaleTimeString()}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold ${service.latency_ms < 50 ? 'text-green-600' : service.latency_ms < 100 ? 'text-yellow-600' : 'text-red-600'}">
+                            ${service.latency_ms}ms
+                        </p>
+                        <span class="px-2 py-1 text-xs rounded-full ${
+                            service.status === 'healthy' ? 'bg-green-100 text-green-800' :
+                            service.status === 'degraded' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                        }">${service.status}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update Crashes
+            const crashesList = document.getElementById('crashesList');
+            crashesList.innerHTML = data.crashes.map(crash => `
+                <div class="p-4 border border-gray-200 rounded-lg ${crash.severity === 'Critical' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">${crash.error_message}</p>
+                            <p class="text-xs text-gray-600 mt-1">${crash.platform} v${crash.app_version}</p>
+                        </div>
+                        <span class="px-2 py-1 text-xs font-medium rounded ${
+                            crash.severity === 'Critical' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'
+                        }">${crash.severity}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Impacted users: ${crash.impacted_users}</p>
+                </div>
+            `).join('');
+            
+            // Update QA Checklist
+            const qaList = document.getElementById('qaList');
+            qaList.innerHTML = data.qa_checklist.map(item => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <button onclick="toggleQA(${item.id})" class="mr-3 focus:outline-none">
+                            <i class="fas ${item.passed ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300'} text-xl"></i>
+                        </button>
+                        <span class="text-sm text-gray-700">${item.task}</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${item.owner}</span>
+                </div>
+            `).join('');
+            
+            // Update metrics
+            document.getElementById('uptime').textContent = '99.98%';
+            document.getElementById('activeServices').textContent = `${data.services.filter(s => s.status === 'healthy').length}/${data.services.length}`;
+            document.getElementById('criticalCrashes').textContent = data.crashes.filter(c => c.severity === 'Critical').length;
+            document.getElementById('qaProgress').textContent = `${Math.round((data.qa_checklist.filter(i => i.passed).length / data.qa_checklist.length) * 100)}%`;
+            document.getElementById('crashCount').textContent = `${data.crashes.length} Active`;
+            document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            
+            // Update chart
+            if (data.services.length > 0) {
+                const now = new Date().toLocaleTimeString();
+                latencyChart.data.labels.push(now);
+                latencyChart.data.datasets[0].data.push(data.services[0].latency_ms);
+                if (data.services.length > 1) {
+                    latencyChart.data.datasets[1].data.push(data.services[1].latency_ms);
+                }
+                if (latencyChart.data.labels.length > 10) {
+                    latencyChart.data.labels.shift();
+                    latencyChart.data.datasets[0].data.shift();
+                    latencyChart.data.datasets[1].data.shift();
+                }
+                latencyChart.update();
+            }
+        }
+        
+        async function toggleQA(itemId) {
+            const response = await fetch(`/api/v1/qa-checklist/${itemId}/toggle`, { method: 'POST' });
+            if (response.ok) {
+                // Will be updated via WebSocket automatically
+            }
+        }
+        
+        // Initial fetch
+        async function fetchInitialData() {
+            const response = await fetch('/api/v1/dashboard');
+            if (response.ok) {
+                const data = await response.json();
+                updateDashboard(data);
+            }
+        }
+        
+        // Initialize
+        connectWebSocket();
+        fetchInitialData();
+        setInterval(fetchInitialData, 30000); // Fallback polling every 30s
+    </script>
+</body>
+</html>
